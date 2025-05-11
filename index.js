@@ -16,12 +16,6 @@ io.on('connection', (socket) => {
   // Enviar lista de nodos activos al nuevo nodo
   socket.emit('nodes', Array.from(activeNodes.keys()));
 
-  // Notificar a todos los demás nodos que hay un nuevo nodo
-  for (const [id, otherSocket] of activeNodes.entries()) {
-    if (id !== nodeId) {
-      otherSocket.emit('nodes', Array.from(activeNodes.keys()));
-    }
-  }
 
   // 🔁 Reenviar offer
   socket.on('offer', (data) => {
