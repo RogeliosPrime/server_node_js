@@ -14,7 +14,7 @@ io.on('connection', (socket) => {
   activeNodes.set(nodeId, socket);
 
   // Enviar lista de nodos activos al nuevo nodo
-  socket.emit('nodes', Array.from(activeNodes.keys()));
+  //socket.emit('nodes', Array.from(activeNodes.keys()));
 
 
   // 🔁 Reenviar offer
