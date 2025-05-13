@@ -23,6 +23,13 @@ io.on('connection', (socket) => {
     }
   }
 
+  socket.on('get_nodes',(data)=>{
+    const target = activeNodes.get(data.target);
+    if (target) {
+      target.emit('nodes', Array.from(activeNodes.keys()));
+    }
+  });
+
   // 🔁 Reenviar offer
   socket.on('offer', (data) => {
     const target = activeNodes.get(data.target);
