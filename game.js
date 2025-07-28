@@ -4,6 +4,7 @@ class Player {
         this.socketId = socketId;
         this.hand = [];
         this.score = 0;
+        this.ready = false;
     }
 }
 
@@ -11,7 +12,7 @@ class Game {
     static states = ["normal", "putCard", "gringo"];
     static TURN_TIMEOUT = 30000; // 30 segundos por turno
     
-    constructor(id, ownerName, ownerSocketId) {
+    constructor(id, ownerName, ownerSocketId,emitToRoom,emitToPlayer) {
         this.id = id;
         this.players = [new Player(ownerName, ownerSocketId)];
         this.ownerSocketId = ownerSocketId;
@@ -20,7 +21,24 @@ class Game {
         this.lastCard = null;
         this.currentTurn = ownerSocketId;
         this.currentState = Game.states[0];
-        this.turnTimer = null; // Referencia al timeout del turno
+        this.turnTimer = null; 
+        this.emitToRoom = emitToRoom;
+        this.emitToPlayer = emitToPlayer;
+    }
+
+    setPlayerReady(socketId) {
+        const player = this.players.find(p => p.socketId === socketId);
+        if (player) player.ready = true;
+    }
+
+    setPlayerUnready(socketId) {
+        const player = this.players.find(p => p.socketId === socketId);
+        if (player) player.ready = false;
+    }
+
+    allPlayersReady() {
+        return this.players.length > 0 && 
+               this.players.every(player => player.ready);
     }
 
     addPlayer(name, socketId) {
@@ -39,12 +57,29 @@ class Game {
     start() {
         this.started = true;
         this.dealCards();
-        this.startTurnTimer(); // Iniciar timer para el primer turno
+        this.startTurnTimer();
+        
+        // Notificar a todos los jugadores de sus cartas y estado inicial
+        this.notifyAllPlayers();
     }
-
+    
     dealCards() {
         this.players.forEach(player => {
             player.hand = this.deck.splice(0, 4);
+        });
+    }
+    
+    // Nuevo método para notificar a todos los jugadores
+    notifyAllPlayers() {
+        // Enviar estado público a toda la sala
+        this.emitToRoom('gameStarted', this.getPublicState());
+        
+        // Enviar información privada a cada jugador
+        this.players.forEach(player => {
+            this.emitToPlayer(player.socketId, 'yourHand', {
+                hand: player.hand,
+                gameId: this.id
+            });
         });
     }
 
@@ -94,6 +129,7 @@ class Game {
         return false;
     }
 
+
     callGringo(socketId) {
         const player = this.players.find(p => p.socketId === socketId);
         if (!player || player.socketId !== this.currentTurn) return false;
@@ -114,8 +150,49 @@ class Game {
             this.currentState = Game.states[0];
         }
         
+        // Notificar al nuevo jugador que es su turno
+        if (this.emitToRoom) {
+            // 1. Notificación específica solo para el jugador cuyo turno es
+            this.emitToPlayer(this.currentTurn, 'yourTurn', {
+                message: "¡Es tu turno!",
+                timeLimit: Game.TURN_TIMEOUT
+            });
+            
+            // 2. Notificación general para todos en la sala
+            this.emitToRoom('turnChanged', {
+                newPlayerId: this.currentTurn,
+                newPlayerName: this.getPlayerName(this.currentTurn)
+            });
+        }
+        
         // Iniciar timer para el nuevo turno
         this.startTurnTimer();
+    }
+    
+    // Método auxiliar para obtener nombre del jugador
+    getPlayerName(socketId) {
+        const player = this.players.find(p => p.socketId === socketId);
+        return player ? player.name : '';
+    }
+    
+    // Método para emitir a un jugador específico
+    emitToPlayer(socketId, event, data) {
+        if (this.emitToRoom) {
+            // Envía el evento solo a este socket específico
+            this.emitToRoom(event, data, socketId);
+        }
+    }
+
+    playerReady(socketId){
+        const player = this.players.find(p => p.socketId === socketId);
+        player.ready = true;
+        this.emitToRoom('onReady', this.getPublicState());
+    }
+
+    playerUnready(socketId){
+        const player = this.players.find(p => p.socketId === socketId);
+        player.ready = false;
+        this.emitToRoom('onReady', this.getPublicState());
     }
 
     startTurnTimer() {
@@ -140,10 +217,22 @@ class Game {
         const player = this.players.find(p => p.socketId === this.currentTurn);
         if (player) {
             // Acción automática: robar una carta
+            let actionTaken = false;
             if (this.deck.length > 0) {
                 const card = this.deck.shift();
                 player.hand.push(card);
                 console.log(`${player.name} robó una carta automáticamente`);
+                actionTaken = true;
+            }
+            
+            // Notificar a los jugadores
+            if (this.emitToRoom) {
+                this.emitToRoom('timeout', {
+                    playerId: player.socketId,
+                    playerName: player.name,
+                    actionTaken: actionTaken,
+                    action: actionTaken ? 'drewCard' : 'noAction'
+                });
             }
             
             // Pasar al siguiente turno
@@ -158,13 +247,12 @@ class Game {
             players: this.players.map(p => ({
                 name: p.name,
                 score: p.score,
-                cardsCount: p.hand.length
+                cardsCount: p.hand.length,
+                ready: p.ready
             })),
             currentTurn: this.currentTurn,
             started: this.started,
-            lastCard: this.lastCard,
-            turnTimeRemaining: this.turnTimer ? 
-                Math.ceil((this.turnTimer._idleStart + this.turnTimer._idleTimeout - Date.now()) / 1000) : 0
+            lastCard: this.lastCard
         };
     }
 
