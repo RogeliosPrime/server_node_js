@@ -23,6 +23,19 @@ class GameManager {
         if (!game) return { success: false, message: "Partida no encontrada" };
         if (game.started) return { success: false, message: "La partida ya comenzó" };
         if(game.players.length >= 4) return { success: false, message: "Número de jugadores excedido" };
+
+        // Verificar si el jugador ya está en la partida
+        const existingPlayer = game.players.find(player => 
+            player.socketId === socketId || player.name === playerName
+        );
+        
+        if (existingPlayer) {
+            return { 
+                success: false, 
+                message: "Ya estás en esta partida",
+                isPlayer: true
+            };
+        }
         game.addPlayer(playerName, socketId);
         return { success: true, game };
     }
