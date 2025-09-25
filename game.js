@@ -28,12 +28,8 @@ class Game {
 
     setPlayerReady(socketId) {
         const player = this.players.find(p => p.socketId === socketId);
-        if (player) player.ready = true;
-    }
+        if (player)         player.ready ? player.ready = false : player.ready = true;
 
-    setPlayerUnready(socketId) {
-        const player = this.players.find(p => p.socketId === socketId);
-        if (player) player.ready = false;
     }
 
     allPlayersReady() {
@@ -185,11 +181,7 @@ class Game {
         }
     }
 
-    playerReady(socketId){
-        const player = this.players.find(p => p.socketId === socketId);
-        player.ready ? player.ready = false : player.ready = true;
-        this.emitToRoom('onReady', this.getPublicState());
-    }
+
 
     startTurnTimer() {
         // Cancelar cualquier timer existente
