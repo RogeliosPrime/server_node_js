@@ -30,7 +30,7 @@ io.on('connection', (socket) => {
     console.log(`Nuevo cliente conectado: ${socket.id}`);
 
     // Crear partida
-    socket.on('createGame', (playerName) => {
+    socket.on('createGame', ({playerName}) => {
         const gameId = gameManager.createGame(playerName, socket.id);
         socket.join(gameId);
         socket.emit('gameCreated', gameId);

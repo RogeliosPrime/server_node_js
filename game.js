@@ -144,7 +144,9 @@ class Game {
         this.cancelTurnTimer();
         
         const currentIndex = this.players.findIndex(p => p.socketId === this.currentTurn);
-        this.currentTurn = this.players[(currentIndex + 1) % this.players.length].socketId;
+        currentIndex = currentIndex+1;
+        if(currentIndex >= this.players.length) currentIndex = 0;
+        this.currentTurn = this.players[currentIndex].socketId;
         
         if (this.currentState !== "gringo") {
             this.currentState = Game.states[0];
@@ -185,13 +187,7 @@ class Game {
 
     playerReady(socketId){
         const player = this.players.find(p => p.socketId === socketId);
-        player.ready = true;
-        this.emitToRoom('onReady', this.getPublicState());
-    }
-
-    playerUnready(socketId){
-        const player = this.players.find(p => p.socketId === socketId);
-        player.ready = false;
+        player.ready ? player.ready = false : player.ready = true;
         this.emitToRoom('onReady', this.getPublicState());
     }
 
