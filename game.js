@@ -28,7 +28,7 @@ class Game {
 
     setPlayerReady(socketId) {
         const player = this.players.find(p => p.socketId === socketId);
-        if (player)         player.ready ? player.ready = false : player.ready = true;
+        if (player) player.ready =  !player.ready;
 
     }
 
